@@ -3,11 +3,7 @@ import CoverLetterOutput from '../components/CoverLetter/CoverLetterOutput';
 import { useCoverLetter } from '../hooks/useCoverLetter';
 
 export default function CoverLetterPage() {
-  const { text, streaming, done, error, generate, abort, reset } = useCoverLetter();
-
-  const handleRegenerate = () => {
-    reset();
-  };
+  const { text, streaming, done, error, letterId, generate, abort, reset } = useCoverLetter();
 
   return (
     <div className="max-w-3xl mx-auto space-y-8">
@@ -41,7 +37,8 @@ export default function CoverLetterPage() {
         text={text}
         streaming={streaming}
         done={done}
-        onRegenerate={handleRegenerate}
+        letterId={letterId}
+        onRegenerate={reset}
       />
 
     </div>

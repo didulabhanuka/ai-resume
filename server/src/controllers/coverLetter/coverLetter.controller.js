@@ -58,11 +58,8 @@ const generate = async (req, res, next) => {
       }
     );
 
-    res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
-    res.end();
-
-    // Save to DB with job title and company name
-    await CoverLetter.create({
+    // Save to DB first so we have the ID
+    const savedLetter = await CoverLetter.create({
       userId: req.user._id,
       jobDescription,
       resumeText,
@@ -75,6 +72,11 @@ const generate = async (req, res, next) => {
       customNote: parsedSettings.customNote,
       wordCount: fullText.split(' ').length,
     });
+
+    // Send done signal with letter ID for frontend download
+    res.write(`data: ${JSON.stringify({ done: true, letterId: savedLetter._id })}\n\n`);
+    res.end();
+
   } catch (err) {
     if (res.headersSent) {
       res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);

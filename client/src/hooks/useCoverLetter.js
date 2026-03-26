@@ -5,6 +5,7 @@ export const useCoverLetter = () => {
   const [streaming, setStreaming] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
+  const [letterId, setLetterId] = useState(null);
   const abortRef = useRef(null);
 
   const generate = async ({ jobTitle, companyName, jobDescription, resumeText, resumeFile, settings }) => {
@@ -12,6 +13,7 @@ export const useCoverLetter = () => {
     setStreaming(true);
     setDone(false);
     setError('');
+    setLetterId(null);
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -19,7 +21,6 @@ export const useCoverLetter = () => {
     try {
       const token = localStorage.getItem('token');
 
-      // Build form data — supports both text and file
       const formData = new FormData();
       formData.append('jobTitle', jobTitle || '');
       formData.append('companyName', companyName || '');
@@ -47,7 +48,6 @@ export const useCoverLetter = () => {
         throw new Error(data.message || 'Failed to generate cover letter.');
       }
 
-      // Read SSE stream
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
 
@@ -60,7 +60,11 @@ export const useCoverLetter = () => {
           if (!line.startsWith('data: ')) continue;
           const parsed = JSON.parse(line.slice(6));
           if (parsed.chunk) setText((prev) => prev + parsed.chunk);
-          if (parsed.done) { setDone(true); setStreaming(false); }
+          if (parsed.done) {
+            setDone(true);
+            setStreaming(false);
+            if (parsed.letterId) setLetterId(parsed.letterId);
+          }
           if (parsed.error) throw new Error(parsed.error);
         }
       }
@@ -80,7 +84,8 @@ export const useCoverLetter = () => {
     setText('');
     setDone(false);
     setError('');
+    setLetterId(null);
   };
 
-  return { text, streaming, done, error, generate, abort, reset };
+  return { text, streaming, done, error, letterId, generate, abort, reset };
 };
