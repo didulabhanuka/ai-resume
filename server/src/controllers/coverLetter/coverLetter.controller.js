@@ -6,7 +6,11 @@ const { generatePdf } = require('../../services/pdf/pdfExport.service');
 // POST /api/cover-letter/generate
 const generate = async (req, res, next) => {
   try {
-    const { jobDescription, settings } = req.body;
+   const { jobDescription } = req.body;
+    // Parse settings — sent as JSON string in FormData
+    const settings = typeof req.body.settings === 'string'
+    ? JSON.parse(req.body.settings)
+    : req.body.settings;
     let resumeText = req.body.resumeText;
 
     if (req.file) {
