@@ -1,6 +1,7 @@
 const CoverLetter = require('../../models/coverLetter/CoverLetter');
 const { streamCoverLetter } = require('../../services/claude/claude.service');
 const { extractText } = require('../../services/pdf/pdfParser.service');
+const { generatePdf } = require('../../services/pdf/pdfExport.service');
 
 // POST /api/cover-letter/generate
 const generate = async (req, res, next) => {
@@ -8,12 +9,10 @@ const generate = async (req, res, next) => {
     const { jobDescription, settings } = req.body;
     let resumeText = req.body.resumeText;
 
-    // If PDF uploaded extract text from it
     if (req.file) {
       resumeText = await extractText(req.file.buffer);
     }
 
-    // Validate inputs
     if (!jobDescription || !jobDescription.trim()) {
       return res.status(400).json({
         status: 'error',
@@ -28,7 +27,6 @@ const generate = async (req, res, next) => {
       });
     }
 
-    // Parse settings with defaults
     const parsedSettings = {
       tone: settings?.tone || 'professional',
       length: settings?.length || 'medium',
@@ -36,7 +34,6 @@ const generate = async (req, res, next) => {
       customNote: settings?.customNote || '',
     };
 
-    // Set SSE headers — keeps connection open for streaming
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
@@ -44,7 +41,6 @@ const generate = async (req, res, next) => {
 
     let fullText = '';
 
-    // Stream chunks to client as they arrive
     await streamCoverLetter(
       jobDescription,
       resumeText,
@@ -55,11 +51,9 @@ const generate = async (req, res, next) => {
       }
     );
 
-    // Signal to frontend that stream is complete
     res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
     res.end();
 
-    // Save complete letter to DB after streaming ends
     await CoverLetter.create({
       userId: req.user._id,
       jobDescription,
@@ -72,7 +66,6 @@ const generate = async (req, res, next) => {
       wordCount: fullText.split(' ').length,
     });
   } catch (err) {
-    // If headers already sent we can't use res.json — send SSE error instead
     if (res.headersSent) {
       res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
       res.end();
@@ -97,10 +90,17 @@ const download = async (req, res, next) => {
       });
     }
 
-    res.status(200).json({
-      status: 'success',
-      data: letter,
-    });
+    // Generate PDF from stored letter text
+    const pdfBytes = await generatePdf(letter.generatedLetter, req.user.name);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="cover-letter-${letter._id}.pdf"`
+    );
+    res.setHeader('Content-Length', pdfBytes.length);
+
+    res.end(Buffer.from(pdfBytes));
   } catch (err) {
     next(err);
   }
