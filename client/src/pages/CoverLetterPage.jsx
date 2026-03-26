@@ -1,0 +1,1 @@
+export default function CoverLetterPage() { return <div>Cover Letter</div> }

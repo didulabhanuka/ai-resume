@@ -1,0 +1,1 @@
+export default function ScreenerPage() { return <div>Screener</div> }
